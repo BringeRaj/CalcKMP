@@ -8,12 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
     private lateinit var resultTextView: TextView
-    private var currentInput = "0"
-    private var currentOperator = ""
-    private var firstOperand = 0.0
-    private var operationPending = false
-    private var lastInputWasOperator = false
-    private var expressionText = ""
+    private val calculator = Calculator()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,6 +24,9 @@ class MainActivity : AppCompatActivity() {
 
         // Set up click listeners for other buttons
         setOtherButtonClickListeners()
+
+        // Initialize display
+        updateDisplay()
     }
 
     private fun setNumberButtonClickListeners() {
@@ -64,42 +62,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun onDigitClick(view: View) {
         val digit = (view as Button).text.toString()
-
-        if (currentInput == "0" || operationPending) {
-            currentInput = digit
-            operationPending = false
-        } else {
-            currentInput += digit
-        }
-
-        lastInputWasOperator = false
+        calculator.addDigit(digit)
         updateDisplay()
     }
 
     private fun onOperatorClick(view: View) {
-        if (lastInputWasOperator) {
-            // Replace the previous operator
-            currentOperator = getOperatorFromButton(view as Button)
-            updateDisplay()
-            return
-        }
-
-        if (operationPending) {
-            currentOperator = getOperatorFromButton(view as Button)
-            updateDisplay()
-            return
-        }
-
-        if (currentOperator.isNotEmpty()) {
-            // Perform the pending operation first
-            onEqualsClick()
-        }
-
-        firstOperand = currentInput.toDouble()
-        expressionText = currentInput
-        currentOperator = getOperatorFromButton(view as Button)
-        operationPending = true
-        lastInputWasOperator = true
+        val operator = getOperatorFromButton(view as Button)
+        calculator.setOperator(operator)
         updateDisplay()
     }
 
@@ -114,104 +83,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onClearClick() {
-        currentInput = "0"
-        currentOperator = ""
-        firstOperand = 0.0
-        operationPending = false
-        lastInputWasOperator = false
-        expressionText = ""
+        calculator.clear()
         updateDisplay()
     }
 
     private fun onEqualsClick() {
-        if (currentOperator.isEmpty()) {
-            return
-        }
-
-        val secondOperand = currentInput.toDouble()
-        val result = when (currentOperator) {
-            "+" -> firstOperand + secondOperand
-            "-" -> firstOperand - secondOperand
-            "×" -> firstOperand * secondOperand
-            "÷" -> if (secondOperand != 0.0) firstOperand / secondOperand else Double.NaN
-            else -> secondOperand
-        }
-
-        // Store the complete expression before clearing it
-        val completeExpression = "$expressionText $currentOperator $currentInput = "
-
-        currentInput = formatResult(result)
-        currentOperator = ""
-        expressionText = ""  // Clear the expression after calculation
-        operationPending = false
-        lastInputWasOperator = false
-
-        // Show the complete expression with the result
-        resultTextView.text = currentInput
-    }
-
-    private fun formatResult(result: Double): String {
-        return if (result == result.toInt().toDouble()) {
-            result.toInt().toString()
-        } else {
-            result.toString()
-        }
+        calculator.calculate()
+        updateDisplay()
     }
 
     private fun onDecimalClick() {
-        if (operationPending) {
-            currentInput = "0."
-            operationPending = false
-        } else if (!currentInput.contains(".")) {
-            currentInput += "."
-        }
-
-        lastInputWasOperator = false
+        calculator.addDecimal()
         updateDisplay()
     }
 
     private fun onPercentClick() {
-        if (currentInput != "0") {
-            val value = currentInput.toDouble() / 100
-            currentInput = formatResult(value)
-            // If we're in the middle of an expression, we should update the expression
-            if (expressionText.isNotEmpty() && currentOperator.isNotEmpty()) {
-                // We're in the middle of an operation, so we're modifying the second operand
-                updateDisplay()
-            } else {
-                // We're just modifying the current input
-                expressionText = ""
-                updateDisplay()
-            }
-        }
+        calculator.calculatePercent()
+        updateDisplay()
     }
 
     private fun onToggleSignClick() {
-        // This method toggles the sign of the current number (positive/negative)
-        // The button is labeled "+/-" in the UI
-        if (currentInput != "0") {
-            val value = currentInput.toDouble() * -1
-            currentInput = formatResult(value)
-            // If we're in the middle of an expression, we should update the expression
-            if (expressionText.isNotEmpty() && currentOperator.isNotEmpty()) {
-                // We're in the middle of an operation, so we're modifying the second operand
-                updateDisplay()
-            } else {
-                // We're just modifying the current input
-                expressionText = ""
-                updateDisplay()
-            }
-        }
+        calculator.toggleSign()
+        updateDisplay()
     }
 
     private fun updateDisplay() {
-        if (expressionText.isEmpty()) {
-            resultTextView.text = currentInput
-        } else if (lastInputWasOperator) {
-            // Only show the expression and operator when an operator was just pressed
-            resultTextView.text = "$expressionText $currentOperator".trim()
-        } else {
-            resultTextView.text = "$expressionText $currentOperator $currentInput".trim()
-        }
+        resultTextView.text = calculator.getDisplayText()
     }
 }
